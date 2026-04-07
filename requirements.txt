@@ -1,0 +1,21 @@
+# Backend Framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Environment Variables
+python-dotenv
+
+# HTTP Requests
+httpx
+requests
+
+# LLM - Groq
+groq
+
+# Vector Database & Embeddings - Pinecone (includes inference API)
+pinecone
+
+# Validation
+pydantic
+pydantic-settings
