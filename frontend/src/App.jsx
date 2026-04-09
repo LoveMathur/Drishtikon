@@ -6,10 +6,16 @@ import './index.css';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('landing'); // 'landing', 'homepage', 'trending'
+  const [topicToAnalyze, setTopicToAnalyze] = useState('');
 
   const navigateToHomepage = () => setCurrentPage('homepage');
   const navigateToTrending = () => setCurrentPage('trending');
   const navigateToLanding = () => setCurrentPage('landing');
+  
+  const analyzeTopicFromTrending = (topic) => {
+    setTopicToAnalyze(topic);
+    setCurrentPage('homepage');
+  };
 
   return (
     <div className="App">
@@ -21,11 +27,18 @@ function App() {
       )}
       
       {currentPage === 'homepage' && (
-        <MainContent onBackToLanding={navigateToLanding} />
+        <MainContent 
+          onBackToLanding={navigateToLanding}
+          initialTopic={topicToAnalyze}
+          onTopicAnalyzed={() => setTopicToAnalyze('')}
+        />
       )}
       
       {currentPage === 'trending' && (
-        <TrendingPage onBack={navigateToHomepage} />
+        <TrendingPage 
+          onBack={navigateToHomepage}
+          onAnalyzeTopic={analyzeTopicFromTrending}
+        />
       )}
     </div>
   );

@@ -12,6 +12,45 @@ import hashlib
 router = APIRouter()
 
 
+@router.get("/trending")
+async def get_trending():
+    """
+    Fetch trending/top headlines from all 3 news APIs.
+    Lightweight endpoint — no claim extraction or embedding.
+    Returns articles with bias classification and images.
+    """
+    try:
+        news_service = NewsService()
+        bias_service = BiasService()
+        
+        articles = await news_service.fetch_trending(max_results=20)
+        
+        # Classify bias for each article
+        trending_articles = []
+        for article in articles:
+            bias = bias_service.classify_bias(article.source)
+            bias_bucket = bias_service.get_bias_bucket(bias)
+            trending_articles.append({
+                "title": article.title,
+                "source": article.source,
+                "url": article.url,
+                "image_url": article.image_url,
+                "bias": bias,
+                "bias_bucket": bias_bucket,
+                "api_source": article.api_source,
+                "published_at": article.published_at
+            })
+        
+        return {
+            "status": "success",
+            "articles": trending_articles,
+            "count": len(trending_articles)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching trending: {str(e)}")
+
+
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_topic(request: AnalyzeRequest):
     """
@@ -75,12 +114,15 @@ async def analyze_topic(request: AnalyzeRequest):
                 article_claims.append(claim)
                 all_claims.append(claim)
             
-            # Article summary with claims
+            # Article summary with claims — now includes image_url and api_source
             article_summaries.append({
                 "title": article.title,
                 "source": article.source,
                 "bias": article.bias,
+                "bias_bucket": bias_service.get_bias_bucket(article.bias),
                 "url": article.url,
+                "image_url": article.image_url,
+                "api_source": article.api_source,
                 "content_length": len(article.content),
                 "claims_count": len(article_claims),
                 "claims": [c.text for c in article_claims]
@@ -168,6 +210,20 @@ async def analyze_topic(request: AnalyzeRequest):
                 "biases": list(set(c.bias for c in cluster.claims))
             })
         
+        # ─── Build bias-grouped claims ───
+        # Group all claims by their bias bucket (left/center/right)
+        bias_claims = {"left": [], "center": [], "right": []}
+        for claim in all_claims:
+            bucket = bias_service.get_bias_bucket(claim.bias)
+            if claim.text not in bias_claims[bucket]:
+                bias_claims[bucket].append(claim.text)
+        
+        # ─── Build bias-grouped articles ───
+        bias_grouped_articles = {"left": [], "center": [], "right": []}
+        for article_summary in article_summaries:
+            bucket = article_summary["bias_bucket"]
+            bias_grouped_articles[bucket].append(article_summary)
+        
         return AnalyzeResponse(
             status="success",
             message=f"Successfully analyzed {len(articles)} articles with {len(consensus_result.consensus_claims) if consensus_result else 0} consensus claims",
@@ -183,7 +239,9 @@ async def analyze_topic(request: AnalyzeRequest):
                 "articles": article_summaries,
                 "clusters": cluster_summaries,
                 "consensus_claims": consensus_result.consensus_claims if consensus_result else [],
-                "disagreement_claims": consensus_result.disagreement_claims if consensus_result else []
+                "disagreement_claims": consensus_result.disagreement_claims if consensus_result else [],
+                "bias_claims": bias_claims,
+                "bias_grouped_articles": bias_grouped_articles
             }
         )
         
@@ -191,4 +249,3 @@ async def analyze_topic(request: AnalyzeRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-

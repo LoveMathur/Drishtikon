@@ -1,252 +1,176 @@
-import { useState } from 'react';
-import { Search, TrendingUp, Globe2, Users, Sparkles, ChevronRight, ArrowLeft } from 'lucide-react';
-import NewsCard from './NewsCard';
+import { useState, useEffect } from 'react';
+import { Search, ArrowLeft, Loader2, Menu } from 'lucide-react';
+import GroundNewsResults from './GroundNewsResults';
 import Footer from './Footer';
 
-const MainContent = ({ onBackToLanding }) => {
-  const [topic, setTopic] = useState('');
+const MainContent = ({ onBackToLanding, initialTopic = '', onTopicAnalyzed }) => {
+  const [topic, setTopic] = useState(initialTopic);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
+  const [error, setError] = useState(null);
 
-  const handleAnalyze = async () => {
-    if (!topic.trim()) return;
+  // Auto-analyze when initialTopic is provided
+  useEffect(() => {
+    if (initialTopic) {
+      setTopic(initialTopic);
+      handleAnalyzeWithTopic(initialTopic);
+      if (onTopicAnalyzed) onTopicAnalyzed();
+    }
+  }, [initialTopic]);
+
+  const handleAnalyzeWithTopic = async (topicToAnalyze) => {
+    if (!topicToAnalyze.trim()) return;
     
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch('http://localhost:8001/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topic.trim() })
+        body: JSON.stringify({ topic: topicToAnalyze.trim() })
       });
       const data = await response.json();
       if (data.status === 'success') {
         setResults(data.data);
+      } else {
+        setError(data.message || 'Analysis failed');
       }
-    } catch (error) {
-      console.error('Analysis failed:', error);
+    } catch (err) {
+      console.error('Analysis failed:', err);
+      setError('Could not connect to the analysis server. Make sure the backend is running.');
     } finally {
       setLoading(false);
     }
   };
 
-  const trendingCategories = [
-    {
-      title: "India & Geopolitics",
-      stories: [
-        { title: "Border tensions with neighboring countries", consensus: "high", sources: 8 },
-        { title: "New trade agreement with EU nations", consensus: "medium", sources: 5 },
-        { title: "Diplomatic visit to Southeast Asia", consensus: "high", sources: 12 },
-      ]
-    },
-    {
-      title: "War Room",
-      stories: [
-        { title: "Ukraine conflict enters new phase", consensus: "high", sources: 15 },
-        { title: "Middle East tensions escalate", consensus: "medium", sources: 7 },
-        { title: "NATO expansion discussions", consensus: "low", sources: 4 },
-      ]
-    },
-    {
-      title: "Inside Parliament",
-      stories: [
-        { title: "Budget session key highlights", consensus: "high", sources: 10 },
-        { title: "Opposition walkout over corruption charges", consensus: "medium", sources: 6 },
-        { title: "New education policy debate", consensus: "low", sources: 3 },
-      ]
-    },
-    {
-      title: "Celebs Corner",
-      stories: [
-        { title: "Bollywood star announces new project", consensus: "medium", sources: 5 },
-        { title: "Celebrity charity event raises millions", consensus: "high", sources: 8 },
-        { title: "Sports icon retirement speculation", consensus: "low", sources: 2 },
-      ]
-    },
-  ];
+  const handleAnalyze = async () => {
+    await handleAnalyzeWithTopic(topic);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white">
-      {/* Header */}
-      <header className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              {onBackToLanding && (
-                <button
-                  onClick={onBackToLanding}
-                  className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  Back
-                </button>
-              )}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-pink-500 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gradient">Drishtikon</h1>
-                  <p className="text-xs text-white/60">Multi-Source News Analysis</p>
+    <div className="min-h-screen bg-[#f3f4f6] text-gray-900 font-sans antialiased flex flex-col">
+      {/* ─── Ground News Style Header ─── */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="container mx-auto px-4 md:px-8">
+          {/* Top Row: Logo & Search */}
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <button className="text-gray-500 hover:text-gray-900 md:hidden">
+                <Menu className="w-6 h-6" />
+              </button>
+              
+              <div className="flex items-center gap-2 cursor-pointer" onClick={onBackToLanding}>
+                {onBackToLanding && (
+                  <ArrowLeft className="w-4 h-4 text-gray-500 mr-2" />
+                )}
+                <div className="font-extrabold text-xl tracking-tight text-black flex items-center">
+                  DRISHTI<span className="font-light">KON</span>
                 </div>
               </div>
             </div>
-            <nav className="flex gap-6">
-              <a href="#" className="text-white/80 hover:text-white transition-colors">Trending</a>
-              <a href="#" className="text-white/80 hover:text-white transition-colors">Analysis</a>
-              <a href="#" className="text-white/80 hover:text-white transition-colors">About</a>
+
+            {/* Middle: Search Bar (Desktop) */}
+            <div className="hidden md:flex flex-1 max-w-xl mx-8">
+              <div className="relative w-full">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+                  placeholder="Search thousands of sources..."
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Right: Links */}
+            <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-700">
+               <span className="hover:text-black cursor-pointer border-b-2 border-transparent hover:border-black transition-all pb-1">For You</span>
+               <span className="hover:text-black cursor-pointer border-b-2 border-transparent hover:border-black transition-all pb-1">Local</span>
+               <span className="hover:text-black cursor-pointer border-b-2 border-transparent hover:border-black transition-all pb-1">Blindspot</span>
             </nav>
+          </div>
+          
+          {/* Mobile Search Row */}
+          <div className="md:hidden pb-3">
+             <div className="relative w-full">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+                  placeholder="Search thousands of sources..."
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 placeholder-gray-500 focus:outline-none focus:bg-white focus:border-blue-500 sm:text-sm"
+                />
+              </div>
           </div>
         </div>
       </header>
 
-      {/* Search Section */}
-      <section className="py-12 bg-gradient-to-b from-orange-900/20 to-transparent">
-        <div className="container mx-auto px-6">
-          <div className="max-w-3xl mx-auto text-center mb-8">
-            <h2 className="text-4xl font-bold mb-4">Analyze Any Topic</h2>
-            <p className="text-white/60">Enter a topic to see consensus vs disagreement across sources</p>
-          </div>
-          
-          <div className="max-w-2xl mx-auto">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
-                placeholder="e.g., climate change, economy, technology..."
-                className="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-orange-500/50 focus:bg-white/15 transition-all"
-              />
-              <button
-                onClick={handleAnalyze}
-                disabled={loading}
-                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-pink-500 rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-500/50 transition-all disabled:opacity-50 flex items-center gap-2"
-              >
-                {loading ? 'Analyzing...' : 'Analyze'}
-                <Search className="w-5 h-5" />
-              </button>
+      {/* ─── Main Content Area ─── */}
+      <main className="flex-1">
+        {/* Loading State */}
+        {loading && (
+          <section className="py-24">
+            <div className="container mx-auto px-6 text-center">
+              <Loader2 className="w-10 h-10 animate-spin text-gray-400 mx-auto mb-6" />
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Analyzing coverage for "{topic}"</h3>
+              <p className="text-gray-500 text-sm max-w-md mx-auto">
+                Scanning multiple news sources, categorizing bias, and extracting consensus claims...
+              </p>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        )}
 
-      {/* Results Section */}
-      {results && (
-        <section className="py-12">
-          <div className="container mx-auto px-6">
-            <ResultsView results={results} />
-          </div>
-        </section>
-      )}
-
-      {/* Trending Categories */}
-      <section className="py-12">
-        <div className="container mx-auto px-6">
-          <div className="flex items-center gap-3 mb-8">
-            <TrendingUp className="w-8 h-8 text-orange-500" />
-            <h2 className="text-3xl font-bold">Trending Now</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {trendingCategories.map((category, idx) => (
-              <TrendingCategory key={idx} category={category} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <Footer />
-    </div>
-  );
-};
-
-const ResultsView = ({ results }) => {
-  return (
-    <div className="space-y-8">
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard label="Articles" value={results.article_count} />
-        <StatCard label="Claims Extracted" value={results.total_claims} />
-        <StatCard label="Consensus" value={results.consensus_claims?.length || 0} color="text-green-400" />
-        <StatCard label="Disagreements" value={results.disagreement_claims?.length || 0} color="text-orange-400" />
-      </div>
-
-      {/* Consensus */}
-      {results.consensus_claims && results.consensus_claims.length > 0 && (
-        <div>
-          <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            Consensus Claims (Widely Agreed Upon)
-          </h3>
-          <div className="space-y-3">
-            {results.consensus_claims.map((claim, idx) => (
-              <div key={idx} className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 hover:bg-green-500/15 transition-colors">
-                <p className="text-white">{claim}</p>
+        {/* Error State */}
+        {error && !loading && (
+          <section className="py-12">
+            <div className="container mx-auto px-6">
+              <div className="max-w-lg mx-auto bg-white border border-red-200 rounded-md shadow-sm p-8 text-center">
+                <p className="text-red-700 font-bold mb-2">Analysis Failed</p>
+                <p className="text-gray-600 text-sm">{error}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Disagreements */}
-      {results.disagreement_claims && results.disagreement_claims.length > 0 && (
-        <div>
-          <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-            Disagreement Claims (Limited Agreement)
-          </h3>
-          <div className="space-y-3">
-            {results.disagreement_claims.map((claim, idx) => (
-              <div key={idx} className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 hover:bg-orange-500/15 transition-colors">
-                <p className="text-white/80">{claim}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const StatCard = ({ label, value, color = "text-white" }) => {
-  return (
-    <div className="glass-effect p-6 rounded-xl">
-      <div className={`text-3xl font-bold ${color} mb-2`}>{value}</div>
-      <div className="text-white/60 text-sm">{label}</div>
-    </div>
-  );
-};
-
-const TrendingCategory = ({ category }) => {
-  return (
-    <div className="glass-effect p-6 rounded-xl hover:bg-white/10 transition-all">
-      <h3 className="text-xl font-bold mb-4 text-gradient">{category.title}</h3>
-      <div className="space-y-3">
-        {category.stories.map((story, idx) => (
-          <div key={idx} className="border-l-2 border-white/20 pl-3 hover:border-orange-500/50 transition-colors cursor-pointer">
-            <p className="text-sm text-white/90 mb-1">{story.title}</p>
-            <div className="flex items-center gap-2 text-xs text-white/50">
-              <span>{story.sources} sources</span>
-              <span>•</span>
-              <span className={`${getConsensusColor(story.consensus)}`}>
-                {story.consensus} consensus
-              </span>
             </div>
+          </section>
+        )}
+
+        {/* Results Section */}
+        {results && !loading && (
+          <div className="py-6">
+            <GroundNewsResults results={results} topic={topic} />
           </div>
-        ))}
+        )}
+
+        {/* Empty State */}
+        {!results && !loading && !error && (
+          <section className="py-32">
+            <div className="container mx-auto px-6 text-center">
+              <div className="max-w-md mx-auto bg-white border border-gray-200 rounded-lg p-10 shadow-sm">
+                <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Search to analyze</h3>
+                <p className="text-gray-500 text-sm">
+                  Search any topic, person, or event to see how it's being covered across the political spectrum.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* ─── Footer Wrapper (Needs to look clean in light mode) ─── */}
+      <div className="bg-white border-t border-gray-200 py-6 mt-10">
+        <div className="container mx-auto px-6 text-center text-sm text-gray-500">
+          © 2026 Drishtikon (Ground News Style Demo).
+        </div>
       </div>
     </div>
   );
-};
-
-const getConsensusColor = (level) => {
-  switch (level) {
-    case 'high': return 'text-green-400';
-    case 'medium': return 'text-yellow-400';
-    case 'low': return 'text-red-400';
-    default: return 'text-white/50';
-  }
 };
 
 export default MainContent;

@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
   body {
     margin: 0;
     padding: 0;
@@ -17,6 +22,8 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
   
   .glass-effect {
@@ -30,6 +37,13 @@
     background-size: 400% 400%;
     animation: gradient 15s ease infinite;
   }
+  
+  /* Optimize animations */
+  .optimize-animation {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
 }
 
 @keyframes gradient {
@@ -38,5 +52,23 @@
   }
   50% {
     background-position: 100% 50%;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - 1rem));
+  }
+}
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - 1rem));
   }
 }
