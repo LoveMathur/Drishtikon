@@ -163,12 +163,8 @@ const MainContent = ({ onBackToLanding, initialTopic = '', onTopicAnalyzed }) =>
         )}
       </main>
 
-      {/* ─── Footer Wrapper (Needs to look clean in light mode) ─── */}
-      <div className="bg-white border-t border-gray-200 py-6 mt-10">
-        <div className="container mx-auto px-6 text-center text-sm text-gray-500">
-          © 2026 Drishtikon (Ground News Style Demo).
-        </div>
-      </div>
+      {/* ─── Footer Wrapper ─── */}
+      <Footer onTopicClick={handleAnalyzeWithTopic} />
     </div>
   );
 };

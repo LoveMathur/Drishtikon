@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2, RefreshCw, Menu, Search, Flame } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw, Menu, Flame, ChevronRight } from 'lucide-react';
 import TrendingCard from './TrendingCard';
 import Footer from './Footer';
 
 const TrendingPage = ({ onBack, onAnalyzeTopic }) => {
-  const [articles, setArticles] = useState([]);
+  const [categoriesData, setCategoriesData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [analyzingTopic, setAnalyzingTopic] = useState(null);
@@ -18,16 +18,15 @@ const TrendingPage = ({ onBack, onAnalyzeTopic }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:8001/api/trending');
+      const response = await fetch('http://localhost:8001/api/trending_categories');
       const data = await response.json();
       if (data.status === 'success') {
-        setArticles(data.articles || []);
+        setCategoriesData(data.categories || []);
       } else {
          throw new Error('Fallback trigger');
       }
     } catch (err) {
       console.error('Trending fetch failed:', err);
-      // Fallback UI data just in case during transition
       if (error === null) {
           setError('Could not connect to the server. Make sure the backend is running.');
       }
@@ -36,25 +35,13 @@ const TrendingPage = ({ onBack, onAnalyzeTopic }) => {
     }
   };
 
-  const handleAnalyze = async (title) => {
-    setAnalyzingTopic(title);
+  const handleAnalyze = async (topicOrTitle) => {
+    setAnalyzingTopic(topicOrTitle);
     if (onAnalyzeTopic) {
-      await onAnalyzeTopic(title);
+      await onAnalyzeTopic(topicOrTitle);
     }
     setAnalyzingTopic(null);
   };
-
-  // Group articles by bias for the overview
-  const biasGroups = {
-    left: articles.filter(a => a.bias_bucket === 'left'),
-    center: articles.filter(a => a.bias_bucket === 'center'),
-    right: articles.filter(a => a.bias_bucket === 'right'),
-  };
-
-  const totalLeft = biasGroups.left.length;
-  const totalCenter = biasGroups.center.length;
-  const totalRight = biasGroups.right.length;
-  const total = totalLeft + totalCenter + totalRight;
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] text-gray-900 font-sans antialiased flex flex-col">
@@ -93,28 +80,20 @@ const TrendingPage = ({ onBack, onAnalyzeTopic }) => {
            <div className="mb-8 border-b border-gray-200 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
              <div>
                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                 <Flame className="w-3.5 h-3.5 text-red-500" /> Top Stories
+                 <Flame className="w-3.5 h-3.5 text-red-500" /> Categorized Feed
                </div>
                <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 tracking-tight leading-tight">
                  Trending News
                </h1>
              </div>
              <div>
-                {/* Bias Overview Bar (Small) */}
-                {!loading && total > 0 && (
-                  <div className="w-48">
-                    <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-1.5">
-                      <span>L</span>
-                      <span>Total: {total}</span>
-                      <span>R</span>
-                    </div>
-                    <div className="flex h-1.5 rounded overflow-hidden">
-                      {totalLeft > 0 && <div className="bg-[#2563eb]" style={{ width: `${(totalLeft / total) * 100}%` }}></div>}
-                      {totalCenter > 0 && <div className="bg-[#9ca3af]" style={{ width: `${(totalCenter / total) * 100}%` }}></div>}
-                      {totalRight > 0 && <div className="bg-[#dc2626]" style={{ width: `${(totalRight / total) * 100}%` }}></div>}
-                    </div>
-                  </div>
-                )}
+               <button
+                  onClick={fetchTrending}
+                  className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest hover:text-blue-600 transition-colors"
+               >
+                 <RefreshCw className="w-3.5 h-3.5" />
+                 Refresh Feed
+               </button>
              </div>
            </div>
 
@@ -122,7 +101,7 @@ const TrendingPage = ({ onBack, onAnalyzeTopic }) => {
           {loading && (
             <div className="text-center py-32">
               <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-sm font-semibold">Aggregating live stories...</p>
+              <p className="text-gray-500 text-sm font-semibold">Aggregating and categorizing live stories...</p>
             </div>
           )}
 
@@ -142,8 +121,8 @@ const TrendingPage = ({ onBack, onAnalyzeTopic }) => {
             </div>
           )}
 
-          {/* Articles Grid */}
-          {!loading && !error && articles.length > 0 && (
+          {/* Articles By Category */}
+          {!loading && !error && categoriesData.length > 0 && (
             <>
               {/* Analyzing overlay */}
               {analyzingTopic && (
@@ -156,26 +135,34 @@ const TrendingPage = ({ onBack, onAnalyzeTopic }) => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">
-                  Live Feed
-                </h3>
-                <button
-                  onClick={fetchTrending}
-                  className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest hover:text-blue-600 transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Refresh
-                </button>
-              </div>
+              <div className="space-y-16">
+                {categoriesData.map((categorySection, idx) => (
+                  <div key={idx}>
+                    <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-900">
+                      <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">
+                        {categorySection.category}
+                      </h3>
+                      <button className="hidden sm:flex items-center text-sm font-bold text-blue-600 hover:underline">
+                        View All <ChevronRight className="w-4 h-4 ml-1" />
+                      </button>
+                    </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {articles.map((article, idx) => (
-                  <TrendingCard
-                    key={idx}
-                    article={article}
-                    onAnalyze={handleAnalyze}
-                  />
+                    {categorySection.articles && categorySection.articles.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {categorySection.articles.map((article, aIdx) => (
+                          <TrendingCard
+                            key={aIdx}
+                            article={article}
+                            onAnalyze={() => handleAnalyze(article.title)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-gray-500 border border-dashed border-gray-300 rounded">
+                        No articles currently available for {categorySection.category}.
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </>
@@ -184,11 +171,7 @@ const TrendingPage = ({ onBack, onAnalyzeTopic }) => {
       </main>
 
       {/* ─── Footer ─── */}
-      <div className="bg-white border-t border-gray-200 py-6 mt-auto">
-        <div className="container mx-auto px-6 text-center text-sm font-semibold text-gray-400 uppercase tracking-widest">
-          © 2026 Drishtikon &bull; Ground News Layout Mirror
-        </div>
-      </div>
+      <Footer onTopicClick={handleAnalyze} />
     </div>
   );
 };

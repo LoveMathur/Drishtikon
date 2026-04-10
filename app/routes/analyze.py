@@ -8,6 +8,7 @@ from app.services.pinecone_service import PineconeService
 from app.services.clustering_service import ClusteringService
 from app.services.consensus_service import ConsensusService
 import hashlib
+import asyncio
 
 router = APIRouter()
 
@@ -49,6 +50,58 @@ async def get_trending():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching trending: {str(e)}")
+
+
+@router.get("/trending_categories")
+async def get_trending_categories():
+    """
+    Fetch categorized trending headlines.
+    Categories: "India and Geopolitics", "War Room", "Inside Parliament", "Celebs Corner"
+    Returns exactly up to 8 articles per category.
+    """
+    categories = ["India and Geopolitics", "War Room", "Inside Parliament", "Celebs Corner"]
+    try:
+        news_service = NewsService()
+        bias_service = BiasService()
+        
+        async def fetch_for_category(category):
+            articles = await news_service.fetch_articles(category, max_results=8)
+            cat_articles = []
+            for article in articles:
+                bias = bias_service.classify_bias(article.source)
+                bias_bucket = bias_service.get_bias_bucket(bias)
+                cat_articles.append({
+                    "title": article.title,
+                    "source": article.source,
+                    "url": article.url,
+                    "image_url": article.image_url,
+                    "bias": bias,
+                    "bias_bucket": bias_bucket,
+                    "api_source": article.api_source,
+                    "published_at": article.published_at
+                })
+            return category, cat_articles
+
+        tasks = [fetch_for_category(cat) for cat in categories]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        categorized_data = []
+        for result in results:
+            if isinstance(result, Exception):
+                print(f"Error fetching category: {result}")
+                continue
+            category, articles = result
+            categorized_data.append({
+                "category": category,
+                "articles": articles
+            })
+            
+        return {
+            "status": "success",
+            "categories": categorized_data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching trending categories: {str(e)}")
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
